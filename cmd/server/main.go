@@ -23,7 +23,7 @@ import (
 
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	cfg := config.FromEnv()
+	cfg := config.ServerConfigFromEnv()
 	ctx := context.Background()
 
 	shutdownOTel, err := observability.Setup(ctx, cfg.ServiceName, cfg.OTLPEndpoint)
@@ -43,8 +43,8 @@ func main() {
 		"services", len(reg.Services()),
 	)
 
-	pinot := exec.NewPinotClient(cfg.PinotBrokerURL, cfg.RequestTimeout)
-	kv := exec.NewKVClient(cfg.ValkeyAddr)
+	pinot := exec.NewPinotClient(cfg.Pinot.BrokerURL, cfg.RequestTimeout)
+	kv := exec.NewKVClient(cfg.Valkey.Addr, cfg.Valkey.Password)
 	defer kv.Close()
 
 	dispatcher := server.NewDispatcher(reg, pinot, kv, log, cfg.RequestTimeout)
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	go func() {
-		log.Info("data-serving-api no ar", "addr", cfg.ListenAddr, "pinot", cfg.PinotBrokerURL)
+		log.Info("data-serving-api no ar", "addr", cfg.ListenAddr, "pinot", cfg.Pinot.BrokerURL)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Error("serve encerrou com erro", "err", err)
 		}

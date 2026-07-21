@@ -7,26 +7,21 @@
 
 plans:
   - method: /lab.serving.v1.AccountsService/GetAccount
-    type: pinot_query
-    pinot:
-      result: single_row
-      sql: |
-        SELECT account_id,
-               status,
-               tier,
-               region,
-               balance,
-               version,
-               CAST(updated_at AS LONG) AS updated_at_ms
-        FROM accounts
-        WHERE account_id = {account_id}
-        LIMIT 1
+    type: kv_get
+    kv:
+      key_template: "accounts:{account_id}"   # value = Account serializado (proto)
 
-  # Quando o sink KV (Valkey) existir no pipeline, o lookup migra para:
+  # Fallback anterior (Pinot) — reative trocando o type se precisar comparar:
   # - method: /lab.serving.v1.AccountsService/GetAccount
-  #   type: kv_get
-  #   kv:
-  #     key_template: "accounts:{account_id}"   # value = Account serializado (proto)
+  #   type: pinot_query
+  #   pinot:
+  #     result: single_row
+  #     sql: |
+  #       SELECT account_id, status, tier, region, balance, version,
+  #              CAST(updated_at AS LONG) AS updated_at_ms
+  #       FROM accounts
+  #       WHERE account_id = {account_id}
+  #       LIMIT 1
 
   - method: /lab.serving.v1.AccountsService/AggAccountsByRegion
     type: pinot_query

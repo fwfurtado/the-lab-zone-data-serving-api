@@ -30,7 +30,7 @@ message GetAccountResponse {
   double balance = 5;
   int64 version = 6;
   // epoch millis (CAST(updated_at AS LONG) no template) — Timestamp proto
-  // fica para quando o mapper suportar well-known types.
+  // TODO: implementar quando o mapper suportar well-known types.
   int64 updated_at_ms = 7;
 }
 
@@ -48,4 +48,16 @@ message AggAccountsByRegionResponse {
     double total_balance = 3;
     int64 accounts = 4;
   }
+}
+
+message Account {
+  int64 account_id = 1;
+  string status = 2;
+  string tier = 3;
+  string region = 4;
+  double balance = 5;
+  int64 version = 6;
+  // epoch millis (CAST(updated_at AS LONG) no template) — Timestamp proto
+  // TODO: implementar quando o mapper suportar well-known types.
+  int64 updated_at_ms = 7;
 }

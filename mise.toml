@@ -2,3 +2,4 @@
 "aqua:fullstorydev/grpcui" = "latest"
 grpcurl = "latest"
 just = "latest"
+rpk = "latest"

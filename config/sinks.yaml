@@ -1,0 +1,14 @@
+# Sinks tópico -> Valkey. O value gravado é o PROTO DE RESPOSTA serializado —
+# exatamente o que o kv_get da API devolve, sem transformação no read path.
+sinks:
+  - name: accounts
+    topic: accounts.cdf
+    group: kv-sink-accounts
+    message: lab.serving.v1.Account
+    key_template: "accounts:{account_id}"
+    delete_flag_field: deleted
+    fields:
+      # default: campo proto == campo JSON do evento; só overrides aqui
+      - proto: updated_at_ms
+        json: updated_at
+        transform: iso_millis

@@ -24,8 +24,8 @@ type KVClient struct {
 	rdb *redis.Client
 }
 
-func NewKVClient(addr string) *KVClient {
-	return &KVClient{rdb: redis.NewClient(&redis.Options{Addr: addr})}
+func NewKVClient(addr, password string) *KVClient {
+	return &KVClient{rdb: redis.NewClient(&redis.Options{Addr: addr, Password: password})}
 }
 
 func (c *KVClient) Close() error { return c.rdb.Close() }
@@ -33,7 +33,7 @@ func (c *KVClient) Close() error { return c.rdb.Close() }
 var keyTokenRe = regexp.MustCompile(`\{([a-zA-Z0-9_]+)\}`)
 
 func (c *KVClient) Execute(ctx context.Context, plan *contracts.ResolvedPlan, req protoreflect.Message) (*dynamicpb.Message, error) {
-	key, err := renderKey(plan.KV.KeyTemplate, req)
+	key, err := RenderKey(plan.KV.KeyTemplate, req)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "montando chave: %v", err)
 	}
@@ -53,7 +53,9 @@ func (c *KVClient) Execute(ctx context.Context, plan *contracts.ResolvedPlan, re
 	return out, nil
 }
 
-func renderKey(template string, req protoreflect.Message) (string, error) {
+// RenderKey resolve tokens {campo} de um template de chave contra os campos
+// de uma mensagem — usado pelo kv_get da API e pelo kv-sink (mesma convenção).
+func RenderKey(template string, req protoreflect.Message) (string, error) {
 	var bindErr error
 	key := keyTokenRe.ReplaceAllStringFunc(template, func(tok string) string {
 		if bindErr != nil {
@@ -62,7 +64,7 @@ func renderKey(template string, req protoreflect.Message) (string, error) {
 		name := tok[1 : len(tok)-1]
 		fd := req.Descriptor().Fields().ByName(protoreflect.Name(name))
 		if fd == nil {
-			bindErr = fmt.Errorf("token {%s} não existe na request", name)
+			bindErr = fmt.Errorf("token {%s} não existe na mensagem", name)
 			return tok
 		}
 		v := req.Get(fd)

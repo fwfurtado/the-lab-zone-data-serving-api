@@ -27,10 +27,12 @@ type Registry struct {
 	services []protoreflect.ServiceDescriptor
 }
 
-func Load(descriptorPath, plansPath string) (*Registry, error) {
-	raw, err := os.ReadFile(descriptorPath)
+// LoadDescriptors carrega um FileDescriptorSet (.binpb) como resolver — usado
+// pela API e pelo kv-sink (mesmo artefato).
+func LoadDescriptors(path string) (*protoregistry.Files, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("lendo descriptors em %s: %w", descriptorPath, err)
+		return nil, fmt.Errorf("lendo descriptors em %s: %w", path, err)
 	}
 	var fds descriptorpb.FileDescriptorSet
 	if err := proto.Unmarshal(raw, &fds); err != nil {
@@ -39,6 +41,14 @@ func Load(descriptorPath, plansPath string) (*Registry, error) {
 	files, err := protodesc.NewFiles(&fds)
 	if err != nil {
 		return nil, fmt.Errorf("construindo registry de files: %w", err)
+	}
+	return files, nil
+}
+
+func Load(descriptorPath, plansPath string) (*Registry, error) {
+	files, err := LoadDescriptors(descriptorPath)
+	if err != nil {
+		return nil, err
 	}
 
 	plans, err := LoadPlans(plansPath)
