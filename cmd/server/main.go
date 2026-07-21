@@ -47,6 +47,14 @@ func main() {
 	kv := exec.NewKVClient(cfg.Valkey.Addr, cfg.Valkey.Password)
 	defer kv.Close()
 
+	pingCtx, pingCtxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCtxCancel()
+
+	if err := kv.Ping(pingCtx); err != nil {
+		log.Error("conexão com o redis falhou", "err", err)
+		os.Exit(1)
+	}
+
 	dispatcher := server.NewDispatcher(reg, pinot, kv, log, cfg.RequestTimeout)
 
 	grpcServer := grpc.NewServer(

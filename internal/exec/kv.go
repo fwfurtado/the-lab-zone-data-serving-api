@@ -28,6 +28,16 @@ func NewKVClient(addr, password string) *KVClient {
 	return &KVClient{rdb: redis.NewClient(&redis.Options{Addr: addr, Password: password})}
 }
 
+func (c *KVClient) Ping(ctx context.Context) error {
+	_, err := c.rdb.Ping(ctx).Result()
+
+	if err != nil {
+		return fmt.Errorf("cannot connect to redis %w", err)
+	}
+
+	return nil
+}
+
 func (c *KVClient) Close() error { return c.rdb.Close() }
 
 var keyTokenRe = regexp.MustCompile(`\{([a-zA-Z0-9_]+)\}`)

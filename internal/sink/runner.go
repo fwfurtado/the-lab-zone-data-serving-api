@@ -149,5 +149,6 @@ func (r *Runner) process(ctx context.Context, rec *kgo.Record) error {
 	if err := r.rdb.Set(ctx, key, raw, 0).Err(); err != nil {
 		return fmt.Errorf("SET %s: %w", key, err)
 	}
+	r.log.Debug("processado", "key", key)
 	return nil
 }
