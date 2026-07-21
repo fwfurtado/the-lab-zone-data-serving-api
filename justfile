@@ -40,11 +40,11 @@ pull-cert:
 
 # roda o kv-sink local (port-forward do redpanda e do valkey)
 run-sink: descriptors pull-cert
-    KAFKA_BROKERS="${VALKEY_ADDR:-redpanda-0.redpanda.data.svc.cluster.local:9093}" \
+    KAFKA_BROKERS="redpanda-0.redpanda.data.svc.cluster.local:9093" \
     KAFKA_USERNAME=kv-sink \
     KAFKA_PASSWORD=(op read "op://the-lab-zone/redpanda-kv-sink/password") \
     KAFKA_CA_PATH=/tmp/redpanda-ca.crt \
-    VALKEY_ADDR="${VALKEY_ADDR:-localhost:6379}" \
+    VALKEY_ADDR="localhost:6379" \
     VALKEY_PASSWORD=(op read "op://the-lab-zone/valkey/password") \
     go run ./cmd/kv-sink
 

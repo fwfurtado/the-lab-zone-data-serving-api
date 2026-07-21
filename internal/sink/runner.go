@@ -109,6 +109,7 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) process(ctx context.Context, rec *kgo.Record) error {
+	r.log.Info("processando", "record", string(rec.Value))
 	msg, deleted, err := r.mapper.Map(rec.Value)
 	if err != nil {
 		return err
