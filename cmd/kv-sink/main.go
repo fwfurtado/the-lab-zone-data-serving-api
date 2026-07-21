@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/redis/go-redis/v9"
@@ -37,30 +38,51 @@ func main() {
 	}
 
 	rdb := redis.NewClient(&redis.Options{Addr: cfg.Valkey.Addr, Password: cfg.Valkey.Password})
-	defer rdb.Close()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	done := make(chan error, len(specs))
+	var wg sync.WaitGroup
+	runners := make([]*sink.Runner, 0, len(specs))
 	for _, spec := range specs {
 		runner, err := sink.NewRunner(spec, files, cfg.Kafka, rdb, log)
 		if err != nil {
 			log.Error("criando runner", "sink", spec.Name, "err", err)
 			os.Exit(1)
 		}
-		defer runner.Close()
-		go func() { done <- runner.Run(ctx) }()
+		runners = append(runners, runner)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			done <- runner.Run(ctx)
+		}()
 	}
 
 	// encerra no primeiro erro fatal ou no sinal
+	fatal := false
 	select {
 	case err := <-done:
 		if err != nil && ctx.Err() == nil {
 			log.Error("sink encerrou com erro", "err", err)
-			os.Exit(1)
+			fatal = true
 		}
 	case <-ctx.Done():
 	}
+
+	// shutdown ordenado: cancela, ESPERA os runners drenarem, e só então
+	// fecha kafka/redis — fechar client debaixo de goroutine viva é o que
+	// gerava o spam de "redis: client is closed" no desligamento
 	log.Info("desligando...")
+	cancel()
+	wg.Wait()
+	for _, r := range runners {
+		r.Close()
+	}
+	if err := rdb.Close(); err != nil {
+		log.Warn("fechando valkey", "err", err)
+	}
+	if fatal {
+		os.Exit(1)
+	}
 }

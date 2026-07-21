@@ -37,3 +37,17 @@ plans:
         GROUP BY region, tier
         ORDER BY region, tier
         LIMIT 100
+
+  - method: /lab.serving.v1.AccountsService/AggAccountsByTier
+    type: pinot_query
+    pinot:
+      result: rows
+      sql: |
+        SELECT
+               tier,
+               SUM(balance) AS total_balance,
+               COUNT(*) AS accounts
+        FROM accounts
+        WHERE tier IN ({tiers})
+        GROUP BY tier
+        LIMIT 100

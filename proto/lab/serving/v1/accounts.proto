@@ -16,6 +16,22 @@ service AccountsService {
   // Agregação com dimensões conhecidas (region/tier). Candidata a star-tree
   // quando o índice for configurado na tabela.
   rpc AggAccountsByRegion(AggAccountsByRegionRequest) returns (AggAccountsByRegionResponse);
+
+  rpc AggAccountsByTier(AggAccountsByTierRequest) returns (AggAccountsByTierResponse);
+}
+
+message AggAccountsByTierRequest {
+  repeated string tiers = 1;
+}
+
+message AggAccountsByTierResponse {
+  repeated Tiers tiers = 1;
+
+  message Tiers {
+    string tier = 2;
+    double total_balance = 3;
+    int64 accounts = 4;
+  }
 }
 
 message GetAccountRequest {

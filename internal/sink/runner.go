@@ -106,6 +106,12 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 
 		fetches.EachRecord(func(rec *kgo.Record) {
+			// shutdown: não drena o batch com contexto morto — cada SET/DEL
+			// falharia com "context canceled" e viraria spam de ERROR falso;
+			// o não-marcado replay-a idempotente no próximo start
+			if ctx.Err() != nil {
+				return
+			}
 			if err := r.process(ctx, rec); err != nil {
 				// v1: loga e NÃO marca — o registro volta no próximo ciclo do
 				// grupo. Poison pill trava a partição: dead-letter é dívida.
@@ -119,7 +125,7 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) process(ctx context.Context, rec *kgo.Record) error {
-	r.log.Info("processando", "record", string(rec.Value))
+	r.log.Debug("processando", "record", string(rec.Value))
 	msg, deleted, err := r.mapper.Map(rec.Value)
 	if err != nil {
 		return err
