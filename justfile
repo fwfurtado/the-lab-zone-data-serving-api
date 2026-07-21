@@ -32,6 +32,9 @@ smoke:
     grpcurl -plaintext localhost:9090 list
     grpcurl -plaintext -d '{"account_id": 1}' localhost:9090 lab.serving.v1.AccountsService/GetAccount
 
+ui:
+    grpcui -plaintext localhost:9090
+
 docker-build tag="0.1.0":
     docker build -t {{image}}:{{tag}} .
 
