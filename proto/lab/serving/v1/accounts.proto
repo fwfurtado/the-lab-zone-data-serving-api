@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package lab.serving.v1;
+
+option go_package = "github.com/fwfurtado/the-lab-zone-data-serving-api/gen/lab/serving/v1;servingv1";
+
+// Contrato do dataset `accounts` (Delta -> CDF -> Redpanda -> Pinot upsert).
+// Os nomes dos campos casam 1:1 com os aliases das colunas nos templates SQL
+// de config/plans.yaml — é assim que o mapper genérico liga coluna a campo.
+service AccountsService {
+  // Point lookup por PK. Hoje servido pelo Pinot (upsert = estado atual);
+  // quando o sink KV (Valkey) existir, o plano muda em plans.yaml sem tocar
+  // neste contrato.
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+
+  // Agregação com dimensões conhecidas (region/tier). Candidata a star-tree
+  // quando o índice for configurado na tabela.
+  rpc AggAccountsByRegion(AggAccountsByRegionRequest) returns (AggAccountsByRegionResponse);
+}
+
+message GetAccountRequest {
+  int64 account_id = 1;
+}
+
+message GetAccountResponse {
+  int64 account_id = 1;
+  string status = 2;
+  string tier = 3;
+  string region = 4;
+  double balance = 5;
+  int64 version = 6;
+  // epoch millis (CAST(updated_at AS LONG) no template) — Timestamp proto
+  // fica para quando o mapper suportar well-known types.
+  int64 updated_at_ms = 7;
+}
+
+message AggAccountsByRegionRequest {
+  // vira `region IN (...)` no template; lista vazia é rejeitada pelo binder.
+  repeated string regions = 1;
+}
+
+message AggAccountsByRegionResponse {
+  repeated Row rows = 1;
+
+  message Row {
+    string region = 1;
+    string tier = 2;
+    double total_balance = 3;
+    int64 accounts = 4;
+  }
+}

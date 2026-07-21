@@ -1,0 +1,44 @@
+# Planos de execução: liga cada método gRPC do contrato a um executor.
+# Este arquivo é, por enquanto, escrito à mão; no desenho final ele é GERADO
+# a partir do DatasetContract — a estrutura já espelha isso.
+#
+# Tokens {campo} nos templates são resolvidos contra os campos da request
+# (tipados e escapados pelo binder — o cliente nunca envia SQL).
+
+plans:
+  - method: /lab.serving.v1.AccountsService/GetAccount
+    type: pinot_query
+    pinot:
+      result: single_row
+      sql: |
+        SELECT account_id,
+               status,
+               tier,
+               region,
+               balance,
+               version,
+               CAST(updated_at AS LONG) AS updated_at_ms
+        FROM accounts
+        WHERE account_id = {account_id}
+        LIMIT 1
+
+  # Quando o sink KV (Valkey) existir no pipeline, o lookup migra para:
+  # - method: /lab.serving.v1.AccountsService/GetAccount
+  #   type: kv_get
+  #   kv:
+  #     key_template: "accounts:{account_id}"   # value = Account serializado (proto)
+
+  - method: /lab.serving.v1.AccountsService/AggAccountsByRegion
+    type: pinot_query
+    pinot:
+      result: rows
+      sql: |
+        SELECT region,
+               tier,
+               SUM(balance) AS total_balance,
+               COUNT(*) AS accounts
+        FROM accounts
+        WHERE region IN ({regions})
+        GROUP BY region, tier
+        ORDER BY region, tier
+        LIMIT 100
