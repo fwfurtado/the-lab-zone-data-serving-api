@@ -39,8 +39,11 @@ ui:
 pull-cert:
     kubectl -n data get secret redpanda-default-cert -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/redpanda-ca.crt
 
+add-etc-host-entry:
+    grep -qxF "127.0.0.1 redpanda-0.redpanda.data.svc.cluster.local" /etc/hosts || echo "127.0.0.1 redpanda-0.redpanda.data.svc.cluster.local" | sudo tee -a /etc/hosts
+
 # roda o kv-sink local (port-forward do redpanda e do valkey)
-run-sink: descriptors pull-cert
+run-sink: descriptors pull-cert add-etc-host-entry
     KAFKA_BROKERS="${KAFKA_BROKERS:-redpanda-0.redpanda.data.svc.cluster.local:9093}" \
     KAFKA_USERNAME="${KAFKA_USERNAME:-kv-sink}" \
     KAFKA_PASSWORD=$(op read "op://the-lab-zone/redpanda-kv-sink/password") \
