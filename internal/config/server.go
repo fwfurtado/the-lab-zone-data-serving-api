@@ -7,6 +7,7 @@ import (
 
 type ServerConfig struct {
 	ListenAddr      string        // endereço gRPC
+	MetricsAddr     string        // HTTP /metrics (prometheus)
 	DescriptorsPath string        // descriptors.binpb (mesmo artefato do futuro protoreg)
 	PlansPath       string        // plans.yaml
 	RequestTimeout  time.Duration // timeout por request (teto; SLO por plano vem depois)
@@ -27,6 +28,7 @@ func ServerConfigFromEnv() ServerConfig {
 
 	return ServerConfig{
 		ListenAddr:      getenv("LISTEN_ADDR", ":9090"),
+		MetricsAddr:     getenv("METRICS_ADDR", ":9091"),
 		DescriptorsPath: getenv("DESCRIPTORS_PATH", "build/descriptors.binpb"),
 		PlansPath:       getenv("PLANS_PATH", "config/plans.yaml"),
 		RequestTimeout:  getduration("REQUEST_TIMEOUT", 2*time.Second),

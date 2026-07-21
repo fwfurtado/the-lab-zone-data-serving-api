@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -55,7 +56,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	dispatcher := server.NewDispatcher(reg, pinot, kv, log, cfg.RequestTimeout)
+	metrics := observability.NewMetrics()
+	dispatcher := server.NewDispatcher(reg, pinot, kv, log, metrics, cfg.RequestTimeout)
+
+	metricsSrv := &http.Server{Addr: cfg.MetricsAddr, Handler: metricsMux(metrics)}
+	go func() {
+		log.Info("metrics no ar", "addr", cfg.MetricsAddr)
+		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("metrics server encerrou com erro", "err", err)
+		}
+	}()
 
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
@@ -92,7 +102,16 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	if err := metricsSrv.Shutdown(shutdownCtx); err != nil {
+		log.Warn("shutdown do metrics server", "err", err)
+	}
 	if err := shutdownOTel(shutdownCtx); err != nil {
 		log.Warn("shutdown do otel", "err", err)
 	}
+}
+
+func metricsMux(m *observability.Metrics) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", m.Handler())
+	return mux
 }
