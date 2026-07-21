@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -43,6 +44,7 @@ func NewRunner(spec contracts.SinkSpec, files *protoregistry.Files, kafka config
 	}
 
 	opts := []kgo.Opt{
+		kgo.WithLogger(kgoSlog{log: log}),
 		kgo.SeedBrokers(kafka.Brokers...),
 		kgo.ConsumerGroup(spec.Group),
 		kgo.ConsumeTopics(spec.Topic),
@@ -82,6 +84,14 @@ func (r *Runner) Close() { r.client.Close() }
 
 // Run processa até o contexto ser cancelado.
 func (r *Runner) Run(ctx context.Context) error {
+	// fail-fast: broker inalcançável, TLS ou SASL errados devem derrubar o
+	// processo com erro claro, não travar o PollFetches em retry eterno
+	pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	err := r.client.Ping(pingCtx)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("ping ao kafka falhou (broker/TLS/SASL — confira KAFKA_BROKERS, KAFKA_USERNAME, KAFKA_CA_PATH): %w", err)
+	}
 	r.log.Info("sink iniciado", "sink", r.spec.Name, "topic", r.spec.Topic, "group", r.spec.Group)
 	for {
 		fetches := r.client.PollFetches(ctx)
